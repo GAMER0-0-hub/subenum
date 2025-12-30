@@ -1,9 +1,9 @@
+
 # SUBENUM v3
 
 ![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)
 ![Recon](https://img.shields.io/badge/Recon-Subdomain%20Enumeration-blue)
 ![Status](https://img.shields.io/badge/Status-Stable-green)
-<img width="719" height="540" alt="subenum" src="https://github.com/user-attachments/assets/26f61eea-6898-4adb-a48f-020fd2f17845" />
 
 **SUBENUM** is a professional subdomain enumeration framework written in Go, designed for **bug bounty hunters**, **penetration testers**, and **security researchers**.
 
@@ -68,71 +68,58 @@ It focuses on:
 
 ### Install Subenum
 
-```
+```bash
 go install github.com/GAMER0_0/subenum@latest
-```
-## 🚀 Usage
-```
-subenum [options]
-```
+Ensure Go binaries are in your PATH:
 
+bash
+Copy code
+export PATH=$PATH:$(go env GOPATH)/bin
+🚀 Usage
+bash
+Copy code
+subenum [options]
 Target Options
+text
+Copy code
 -d string    Target domain (example.com | *.example.com | *.example.*)
 -l file      File with list of domains
-
 Output Options
+text
+Copy code
 -o dir       Output directory (default: subdomain_enu)
-
 General
+text
+Copy code
 -h           Show help message
-
-
-## 📌 Examples
-
+📌 Examples
 Single domain
-```
+bash
+Copy code
 subenum -d example.com
-```
-
 Wildcard scope
-```
+bash
+Copy code
 subenum -d "*.example.*"
-```
-
 Scope file with custom output
-```
+bash
+Copy code
 subenum -l scope.txt -o /path/recon
-```
-
-
-## 📂 Output Structure
-~~~
+📂 Output Structure
+text
+Copy code
 subdomain_enu/
 └── example.com/
     ├── subdomains.txt
     ├── all_subdomains.txt   (only if manual input added)
     ├── httpx.txt
     └── httpx_200.txt
-~~~
+⚠️ Disclaimer
+This tool is intended only for assets you own or have explicit permission to test.
 
-
-## ⚠️ Disclaimer
-
->This tool is intended only for assets you own or have explicit permission to test.
-
->The author is not responsible for any misuse or illegal activities.
-
-
+The author is not responsible for any misuse or illegal activities.
 
 👤 Author
-
 GAMER_0_0
 
-Crafted with precision for professional recon workflows.
-
-
-
-
-
-
-
+Crafted with precision for professional recon workflows
