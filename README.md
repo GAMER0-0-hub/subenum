@@ -73,9 +73,9 @@ go install github.com/GAMER0-0-hub/subenum@latest
 ```
 ## 🚀 Usage
 ```
-subenum [options]
+subenum -h
 ```
-
+```
 Target Options
 -d string    Target domain (example.com | *.example.com | *.example.*)
 -l file      File with list of domains
@@ -85,7 +85,7 @@ Output Options
 
 General
 -h           Show help message
-
+```
 
 ## 📌 Examples
 
