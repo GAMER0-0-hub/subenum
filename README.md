@@ -69,7 +69,7 @@ It focuses on:
 ### Install Subenum
 
 ```
-go install github.com/GAMER0_0/subenum@latest
+go install github.com/GAMER0-0-hub/subenum@latest
 ```
 ## 🚀 Usage
 ```
