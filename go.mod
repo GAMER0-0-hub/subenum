@@ -1,3 +1,3 @@
 module github.com/GAMER0-0-hub/subenum
 
-go 1.25.1
+go 1.22
