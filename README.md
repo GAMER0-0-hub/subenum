@@ -52,7 +52,7 @@ It focuses on:
 
 ---
 
-## 📦 Installation (Go – Recommended)
+## 🧱 Installation (Build from Source)
 
 ### Requirements
 
@@ -69,7 +69,10 @@ It focuses on:
 ### Install Subenum
 
 ```
-go install github.com/GAMER0-0-hub/subenum@latest
+git clone https://github.com/GAMER0-0-hub/subenum.git
+cd subenum
+go build -o subenum
+sudo mv subenum /usr/local/bin/
 ```
 ## 🚀 Usage
 ```
