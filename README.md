@@ -69,7 +69,7 @@ It focuses on:
 ### Install Subenum
 
 ```
-go install github.com/GAMER0-0-hub/subenum@latest
+go install github.com/GAMER0_0/subenum@latest
 ```
 ## 🚀 Usage
 ```
@@ -129,6 +129,7 @@ subdomain_enu/
 GAMER_0_0
 
 Crafted with precision for professional recon workflows.
+
 
 
 
