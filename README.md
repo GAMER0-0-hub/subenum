@@ -70,7 +70,7 @@ It focuses on:
 ```
 go install github.com/GAMER0_0/subenum@latest
 ```
-🚀 Usage
+## 🚀 Usage
 ```
 subenum [options]
 ```
@@ -86,7 +86,7 @@ General
 -h           Show help message
 
 
-📌 Examples
+## 📌 Examples
 
 Single domain
 ```
@@ -104,22 +104,23 @@ subenum -l scope.txt -o /path/recon
 ```
 
 
-📂 Output Structure
-
+## 📂 Output Structure
+~~~
 subdomain_enu/
 └── example.com/
     ├── subdomains.txt
     ├── all_subdomains.txt   (only if manual input added)
     ├── httpx.txt
     └── httpx_200.txt
+~~~
 
 
+## ⚠️ Disclaimer
 
-⚠️ Disclaimer
+>This tool is intended only for assets you own or have explicit permission to test.
 
-This tool is intended only for assets you own or have explicit permission to test.
+>The author is not responsible for any misuse or illegal activities.
 
-The author is not responsible for any misuse or illegal activities.
 
 
 👤 Author
