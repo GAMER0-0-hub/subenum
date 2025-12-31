@@ -91,8 +91,8 @@ func usage() {
   subenum [options]
 
 Target Options:
-  -d string    Target domain (example.com | *.example.com | *.example.*)
-  -l file      File with list of domains
+  -d string    Target domain (example.com)
+  -l file      File with list of domains (Recommended for batch mode)
 
 Output Options:
   -o dir       Output directory (default: subdomain_enu)
@@ -110,9 +110,7 @@ Examples:
 
 /* ================= UTILS ================= */
 
-// runTool يقوم بتشغيل أمر خارجي مع التحقق من وجوده
 func runTool(name string, args ...string) []string {
-    // التحقق من وجود الأداة في المسار (PATH)
     if _, err := exec.LookPath(name); err != nil {
         return []string{}
     }
@@ -171,7 +169,7 @@ func writeLines(path string, lines []string) {
     }
 }
 
-/* ================= CRTSH (NATIVE GO IMPLEMENTATION) ================= */
+/* ================= CRTSH ================= */
 
 type crtShEntry struct {
     NameValue string `json:"name_value"`
@@ -179,7 +177,6 @@ type crtShEntry struct {
 
 func getCrtSh(domain string) []string {
     apiURL := fmt.Sprintf("https://crt.sh/?q=%%25.%s&output=json", url.QueryEscape(domain))
-
     client := &http.Client{Timeout: 10 * time.Second}
     resp, err := client.Get(apiURL)
     if err != nil {
@@ -208,10 +205,8 @@ func getCrtSh(domain string) []string {
         lines := strings.Split(entry.NameValue, "\n")
         for _, line := range lines {
             sub := strings.TrimSpace(strings.ToLower(line))
-            // إزالة wildcard إذا وجدت (*.domain.com)
             sub = strings.TrimPrefix(sub, "*.")
-
-            if sub != "" && !seen[sub] && strings.Contains(sub, ".") { // تأكد بسيط من أنه نطاق
+            if sub != "" && !seen[sub] && strings.Contains(sub, ".") {
                 seen[sub] = true
                 subs = append(subs, sub)
             }
@@ -226,7 +221,6 @@ func chaosKey() string {
     cfg := filepath.Join(os.Getenv("HOME"), ".config/subenum")
     keyFile := filepath.Join(cfg, "chaos.key")
 
-    // محاولة قراءة المفتاح الموجود
     if data, err := os.ReadFile(keyFile); err == nil {
         return strings.TrimSpace(string(data))
     }
@@ -281,6 +275,11 @@ func main() {
     chaosAPI := chaosKey()
     in := bufio.NewReader(os.Stdin)
 
+    
+    var globalAll []string
+    var globalMu sync.Mutex
+
+    // Phase 1: Enumeration (جمع البيانات فقط)
     for i, t := range targets {
         fmt.Printf(BLUE+"[+] Processing domain (%d/%d): %s\n"+RESET, i+1, len(targets), t)
 
@@ -292,18 +291,18 @@ func main() {
         var mu sync.Mutex
         var wg sync.WaitGroup
 
-        // === 1. Subfinder (Goroutine) ===
+        // === 1. Subfinder ===
         wg.Add(1)
         go func() {
             defer wg.Done()
-            res := runTool("subfinder", "-all","-silent", "-d", base)
+            res := runTool("subfinder", "-all", "-silent", "-d", base)
             mu.Lock()
             all = append(all, res...)
             mu.Unlock()
             fmt.Printf("    ├─ subfinder   : %d found\n", len(res))
         }()
 
-        // === 2. Assetfinder (Goroutine) ===
+        // === 2. Assetfinder ===
         wg.Add(1)
         go func() {
             defer wg.Done()
@@ -314,11 +313,10 @@ func main() {
             fmt.Printf("    ├─ assetfinder : %d found\n", len(res))
         }()
 
-        // === 3. Findomain (Goroutine) - NEW ADDITION ===
+        // === 3. Findomain ===
         wg.Add(1)
         go func() {
             defer wg.Done()
-            // تشغيل findomain مع الوضع الصامت (-q)
             res := runTool("findomain", "-t", base, "-q")
             mu.Lock()
             all = append(all, res...)
@@ -326,12 +324,11 @@ func main() {
             fmt.Printf("    ├─ findomain   : %d found\n", len(res))
         }()
 
-        // === 4. Chaos (Goroutine) ===
+        // === 4. Chaos ===
         wg.Add(1)
         go func() {
             defer wg.Done()
             var res []string
-
             if chaosAPI != "" {
                 res = runTool("chaos", "-d", base, "-key", chaosAPI)
                 mu.Lock()
@@ -339,12 +336,11 @@ func main() {
                 mu.Unlock()
                 fmt.Printf("    ├─ chaos       : %d found\n", len(res))
             } else {
-                // UX Improvement: Explicit message
                 fmt.Printf("    ├─ chaos       : skipped (no API key)\n")
             }
         }()
 
-        // === 5. Crt.sh (Goroutine) ===
+        // === 5. Crt.sh ===
         wg.Add(1)
         go func() {
             defer wg.Done()
@@ -355,22 +351,48 @@ func main() {
             fmt.Printf("    └─ crt.sh      : %d found\n", len(res))
         }()
 
-        // انتظار انتهاء جميع الأدوات
         wg.Wait()
 
         all = dedup(all)
         fmt.Printf(GREEN+"    [+] Total unique subdomains: %d\n"+RESET, len(all))
 
-        // كتابة الملف الأولي
+        // حفظ النتائج الخاصة بكل دومين في ملف منفصل
         mainOutput := filepath.Join(outPath, "subdomains.txt")
         writeLines(mainOutput, all)
 
-        fmt.Print(YELLOW + "[?] Do you want to add additional subdomains? (y/n): " + RESET)
+        // إضافة النتائج للقائمة العالمية
+        globalMu.Lock()
+        globalAll = append(globalAll, all...)
+        globalMu.Unlock()
+    }
+
+    // تنقية القائمة العالمية النهائية
+    globalAll = dedup(globalAll)
+
+    // Phase 2: Post-Processing (التعامل مع النتائج النهائية)
+    
+    // تحديد وضع العمل (Single vs List)
+    isBatchMode := (list != "")
+    
+    var finalInputFile string
+    var finalHttpxFile string
+    var finalHttpx200File string
+
+    if isBatchMode {
+        // === Batch Mode (-l) ===
+        fmt.Println(BLUE + "\n[+] Batch mode detected. Aggregating results..." + RESET)
+        
+        // 1. حفظ كل النتائج في ملف واحد
+        aggFile := filepath.Join(outDir, "all_subdomains_aggregated.txt")
+        writeLines(aggFile, globalAll)
+        finalInputFile = aggFile
+        finalHttpxFile = filepath.Join(outDir, "httpx_all_alive.txt")
+        finalHttpx200File = filepath.Join(outDir, "httpx_all_200.txt")
+
+        // 2. سؤال المستخدم مرة واحدة فقط
+        fmt.Print(YELLOW + "[?] Do you want to add additional subdomains to the aggregated list? (y/n): " + RESET)
         ans, _ := in.ReadString('\n')
         ans = strings.TrimSpace(ans)
-
-        inputFile := mainOutput
-        finalFileName := "subdomains.txt"
 
         if ans == "y" {
             fmt.Println(YELLOW + "[*] Enter subdomains (one per line). Empty line to finish:" + RESET)
@@ -380,46 +402,71 @@ func main() {
                 if line == "" {
                     break
                 }
-                all = append(all, line)
+                globalAll = append(globalAll, line)
             }
-            all = dedup(all)
-            finalFileName = "all_subdomains.txt"
-            inputFile = filepath.Join(outPath, finalFileName)
-            writeLines(inputFile, all)
+            globalAll = dedup(globalAll)
+            writeLines(finalInputFile, globalAll) // تحديث الملف
         }
 
-        // === HTTPX (Alive Check) مع Spinner ===
-        httpxOut := filepath.Join(outPath, "httpx.txt")
+        fmt.Printf(GREEN+"[+] Total aggregated subdomains: %d\n"+RESET, len(globalAll))
 
-        // إعداد وتشغيل الـ Spinner
-        stopSpinner := make(chan bool)
-        var wgSpinner sync.WaitGroup
-        wgSpinner.Add(1)
-        go spinner("Running httpx (alive check)...", stopSpinner, &wgSpinner)
+    } else {
+        // === Single Mode (-d) ===
+        // هنا نتعامل مع الملف الخاص بالدومين الوحيد
+        base := strings.TrimPrefix(targets[0], "*.")
+        singlePath := filepath.Join(outDir, base)
+        finalInputFile = filepath.Join(singlePath, "subdomains.txt")
+        finalHttpxFile = filepath.Join(singlePath, "httpx.txt")
+        finalHttpx200File = filepath.Join(singlePath, "httpx_200.txt")
 
-        cmd := exec.Command("httpx", "-l", inputFile, "-silent", "-o", httpxOut)
-        err := cmd.Run()
+        // سؤال المستخدم (يمكن إزالته إذا أردت توحيد التجربة، لكنه مريح للدومين الواحد)
+        fmt.Print(YELLOW + "[?] Do you want to add additional subdomains? (y/n): " + RESET)
+        ans, _ := in.ReadString('\n')
+        ans = strings.TrimSpace(ans)
 
-        // إيقاف الـ Spinner
-        stopSpinner <- true
-        wgSpinner.Wait()
-
-        if err != nil {
-            fmt.Println(RED + "    [-] Failed to run httpx. Is it installed?" + RESET)
-        } else {
-            fmt.Println(GREEN + "    [+] httpx completed successfully." + RESET)
+        if ans == "y" {
+            fmt.Println(YELLOW + "[*] Enter subdomains (one per line). Empty line to finish:" + RESET)
+            for {
+                line, _ := in.ReadString('\n')
+                line = strings.TrimSpace(strings.ToLower(line))
+                if line == "" {
+                    break
+                }
+                globalAll = append(globalAll, line)
+            }
+            globalAll = dedup(globalAll)
+            writeLines(finalInputFile, globalAll)
         }
-
-        // === Filtering Status Code 200 ===
-        fmt.Println(BLUE + "[*] Filtering status code 200..." + RESET)
-        httpx200Out := filepath.Join(outPath, "httpx_200.txt")
-        cmd2 := exec.Command("httpx", "-l", httpxOut, "-mc", "200", "-silent", "-o", httpx200Out)
-        if err := cmd2.Run(); err != nil {
-            fmt.Println(RED + "    [-] Failed to filter httpx." + RESET)
-        }
-
-        fmt.Printf(GREEN+"[✔] Completed: %s (%d unique subdomains)\n\n"+RESET, t, len(all))
     }
 
-    fmt.Println(GREEN + "[✔] Recon completed successfully." + RESET)
+    // Phase 3: HTTPX (تشغيل مرة واحدة في النهاية)
+    fmt.Println(BLUE + "[*] Running httpx (alive check) on final results..." + RESET)
+
+    stopSpinner := make(chan bool)
+    var wgSpinner sync.WaitGroup
+    wgSpinner.Add(1)
+    go spinner("Probing...", stopSpinner, &wgSpinner)
+
+    cmd := exec.Command("httpx", "-l", finalInputFile, "-silent", "-o", finalHttpxFile)
+    err := cmd.Run()
+
+    stopSpinner <- true
+    wgSpinner.Wait()
+
+    if err != nil {
+        fmt.Println(RED + "    [-] Failed to run httpx." + RESET)
+    } else {
+        fmt.Println(GREEN + "    [+] httpx completed successfully." + RESET)
+    }
+
+    // === Filtering Status Code 200 ===
+    fmt.Println(BLUE + "[*] Filtering status code 200..." + RESET)
+    cmd2 := exec.Command("httpx", "-l", finalHttpxFile, "-mc", "200", "-silent", "-o", finalHttpx200File)
+    if err := cmd2.Run(); err != nil {
+        fmt.Println(RED + "    [-] Failed to filter httpx." + RESET)
+    }
+
+    fmt.Printf(GREEN+"[✔] Recon completed successfully.\n"+RESET)
+    fmt.Printf("    └─ Results saved to: %s\n", finalInputFile)
+    fmt.Printf("    └─ Alive hosts     : %s\n", finalHttpxFile)
 }
