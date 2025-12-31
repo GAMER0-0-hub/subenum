@@ -371,7 +371,7 @@ func main() {
 
     // Phase 2: Post-Processing (التعامل مع النتائج النهائية)
     
-    // تحديد وضع العمل (Single vs List)
+    
     isBatchMode := (list != "")
     
     var finalInputFile string
@@ -382,14 +382,12 @@ func main() {
         // === Batch Mode (-l) ===
         fmt.Println(BLUE + "\n[+] Batch mode detected. Aggregating results..." + RESET)
         
-        // 1. حفظ كل النتائج في ملف واحد
-        aggFile := filepath.Join(outDir, "all_subdomains_aggregated.txt")
+        aggFile := filepath.Join(outDir, "all_subdomains_.txt")
         writeLines(aggFile, globalAll)
         finalInputFile = aggFile
         finalHttpxFile = filepath.Join(outDir, "httpx_all_alive.txt")
-        finalHttpx200File = filepath.Join(outDir, "httpx_all_200.txt")
+        finalHttpx200File = filepath.Join(outDir, "httpx_status_200.txt")
 
-        // 2. سؤال المستخدم مرة واحدة فقط
         fmt.Print(YELLOW + "[?] Do you want to add additional subdomains to the aggregated list? (y/n): " + RESET)
         ans, _ := in.ReadString('\n')
         ans = strings.TrimSpace(ans)
